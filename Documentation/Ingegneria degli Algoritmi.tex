@@ -1,0 +1,300 @@
+\documentclass[10pt,a4paper,titlepage]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{hyperref}
+\usepackage[noend]{algpseudocode}
+
+% -------------------------------------------- %
+% Personalizzazione degli snippet di codice...
+% -------------------------------------------- %
+\lstset{
+language=Python,
+basicstyle=\small\ttfamily,			
+keywordstyle=\color{blue},
+commentstyle=\color{gray},			
+stringstyle=\color{black},			
+numbers=left,						
+numberstyle=\tiny,					
+stepnumber=1,						
+breaklines=true						
+}
+
+
+\newtheorem{thm}{Definizione}
+
+
+\title{Secondo progetto in itinere del corso di Ingegneria degli algoritmi a.a. 2017-2018}
+\author{Andrea Graziani - matricola 0189326}
+\date{20 gennaio 2018}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+
+\section{Grafi e gradi di visibilità}
+
+\subsection{Definizioni preliminari}
+
+Prima di descrivere e analizzare un algoritmo capace di calcolare il \textit{grado di visibilità} di un nodo è essenziale dapprima precisare i termini che useremo nella nostra trattazione.
+
+\begin{thm}\label{thm:def1}
+
+Sia dato un grafo diretto $G = (V, E)$ e un arco $(u, v)$ con $u, v \in V$, si dice che il nodo $u$ è \textbf{predecessore} del nodo $v$ e che il nodo $v$ è il \textbf{successore} del nodo $u$.\footnote{Cfr. http://www.di.unito.it/~locatell/didattica/ro1/grafi-sl-bf.pdf, pp. 4}
+\end{thm}
+
+
+\begin{thm}\label{thm:def2}
+
+Un \textbf{cammino} in un grafo $G$ da un vertice $x$ ad un vertice $y$ è dato da una sequenza di vertici $\langle u_0, u_1, u_2, ..., u_n\rangle$ con $v_0 = x$ e $v_n = y$, tale che, per $1 \leq i \leq n$, l'arco $(u_{i-1}, u_i)$ appartiene a $G$.\footnote{Cfr. Camil Demetrescu \& Irene Finocchi \& Giuseppe F. Italiano - \textit{Algoritmi e strutture dati, Seconda edizione}, McGraw-Hill, pp. 318}
+
+\end{thm}
+
+\begin{thm}\label{thm:def3}
+
+Se esiste un cammino da un vertice $x$ ad un vertice $y$ di $G$, diremo anche che $y$ è \textbf{raggiungibile} da $x$, ovvero che $y$ è un \textbf{discendente} di $x$ e che $x$ è un \textbf{antenato} di $y$.\footnote{\textit{ibid.}}
+
+\end{thm}
+
+Ora abbiamo tutti gli strumenti per poter introdurre il concetto di visibilità.
+
+\begin{thm}\label{thm:def4}
+Sia dato un grafo diretto aciclico non pesato $G = (V, E)$ in cui ad ogni nodo $n$ sia associato un valore numerico intero \texttt{value}. 
+Un nodo $n_2$ si definisce \textbf{visibile} da un nodo $n_1$ se e solo se valgono \textbf{entrambe} le seguenti condizioni:
+\begin{enumerate}
+\item $n_1 \neq n_2$
+\item $n_2$ è \textbf{successore} di $n_1$ oppure un suo \textbf{discendente}; in quest'ultimo caso il cammino $\langle n_1, u_1, u_2, ...u_k, n_2 \rangle$ deve essere tale che $k \leq n_2$\texttt{.value}.
+\end{enumerate}
+
+\end{thm}
+
+\begin{thm}\label{thm:def5}
+Il \textbf{grado di visibilità} di un nodo $n$ é pari al numero di nodi visibili da $n$.
+\end{thm}
+
+
+\subsection{Rappresentazione del grafo}
+
+Come vedremo anche in base a valutazioni sperimentali, la scelta della struttura dati per rappresentare il grafo risulta essere cruciale in quanto essa influenza in modo preponderante le prestazioni dell'algoritmo che abbiamo utilizzato per calcolare il grado di visibilità di un nodo appartenente al grafo. 
+
+Nel nostro caso, dovendo privilegiare l'operazione che ci consenta di trovare tutti i successori di un generico vertice $v$ all'interno di un grafo, la rappresentazione più idonea è risultata essere quella basata su \textit{liste di adiacenza}. Secondo tale rappresentazione, ogni vertice $v$ ha una lista contenente i suoi vertici adiacenti, ovvero tutti i vertici $u$ per cui esiste un arco $(v, u)$\footnote{Cfr. \textit{ivi}, pp. 322-323}; avendo a che fare con grafi orientati, usando la definizione \ref{thm:def1}, si può affermare che la lista di adiacenza di un generico nodo $v$ contiene tutti i suoi successori.
+
+\subsubsection{Vantaggi}
+
+Rispetto ad altre forme di rappresentazione, l'utilizzo delle liste di adiacenza risulta essere particolarmente vantaggiosa per lo scopo della nostra applicazione per due motivi:
+
+\begin{description}
+\item[Facile implementazione] Implementare l'operazione che consenta di trovare i successori di un generico vertice $v$ è molto semplice in quanto è sufficiente scandirne la lista di adiacenza.
+
+\item[Efficienza] Trovare i successori di un generico nodo $v$ risulta essere un operazione molto efficiente: il costo è pari infatti a $\delta(v)$, dove $\delta(v)$ rappresenta il grado del vertice $v$.\footnote{Cfr. \textit{ivi}, pp. 323, Tabella 12.2} Anche le operazioni di inserimento di un nuovo arco e di un nuovo vertice sono molto efficienti: inserire un arco $(u, v)$ implica inserire il vertice $v$ all'interno della lista di adiacenza di $u$ e ciò ha costo pari a $O(1)$.\footnote{\textit{ibid.}}
+\end{description}
+
+\subsection{Calcolo del grado di visibilità}
+
+\subsubsection{Calcolo del grado di visibilità di un singolo vertice}
+
+Descriviamo ora un algoritmo capace di calcolare il grado di visibilità di un generico vertice $v$ di un grafo sfruttando adeguatamente le caratteristiche della forma di rappresentazione dei grafi mediante liste di adiacenza. Supponiamo quindi di avere un grafo $G = (V, E)$ nell'ipotesi descritte nella definizione \ref{thm:def4} e di voler calcolare il grado di visibilità di un generico nodo $u \in V$. 
+
+Durante la $k$-esima iterazione, l'algoritmo trova e visita tutti i discendenti $v$ di $u$ per cui esiste un cammino orientato $\langle u, u_1, u_2, ...u_n, v\rangle$ tale che $n=(k-1)$; in altri termini, l'algoritmo trova ad ogni iterazione $k$ tutti i discendenti $v$ il cui cammino da $u$ in $v$ abbia un numero di nodi intermedi pari a $(k-1)$. Ad esempio, durante la seconda iterazione, l'algoritmo trova e visita tutti i nodi discendenti di $u$ il cui cammino dal nodo $u$ abbia un solo nodo intermedio.
+
+Tuttavia verranno visitati e analizzati esclusivamente quei discendenti che risultino contrassegnati come \textit{non visitati}; durante la suddetta operazione verranno verificate le condizioni di visibilità descritte nella definizione \ref{thm:def4} aggiornando opportunamente il valore del grado di visibilità del nodo $u$. Tutti i nodi analizzati verranno quindi contrassegnati come \textit{visitati} e inseriti all'intero di una coda $C$.
+
+Alla $(k+1)$-esima iterazione, l'algoritmo provvederà a trovare e visitare tutti i successori dei nodi presenti nella coda $C$ procedendo secondo le modalità precedentemente descritte. Qualora la coda $C$ risultasse vuota, l'algoritmo, non avendo trovato altri discendenti di $u$, termina la sua esecuzione rimuovendo il flag di \textit{visitato} a tutti i nodi analizzati durante l'intera computazione e restituendo il valore del grado di visibilità calcolato.
+
+Detto questo è importante ora chiarire alcuni aspetti dell'algoritmo. Siano $u$ e $v$ due nodi appartenenti a $G$ tali che $v$ sia discendente di $u$. Possiamo affermare che:
+
+\begin{enumerate}
+\item L'ipotesi di aciclicità garantisce la non esistenza di cicli all'interno del grafo per cui non può esistere un cammino $\langle u, u_1, u_2, ...u_n, v\rangle$ tale che $u = v$. Ciò garantisce che la prima condizione di visibilità descritta all'interno della definizione \ref{thm:def4} sia \textit{sempre} verificata. Come si può facilmente intuire, l'assenza di cicli permette inoltre all'algoritmo di terminare.
+\item Dal momento che può esistere più di un cammino tra i vertici $u$ e $v$, corriamo il rischio di visitare più di una volta uno stesso nodo ottenendo perciò risultati erronei. L'uso di un apposito flag consente di risolvere il problema permettendoci di distinguere i vertici già visitati.
+\item Affinché l'algoritmo possa essere correttamente eseguito, l'uso dei flag richiede tuttavia una fase di inizializzazione durante la quale tutti i nodi del grafo devono essere contrassegnati come non visitati. Per comprendere meglio le conseguenze della precedente constatazione facciamo un esempio: supponiamo che $E=\emptyset$, ovvero il grafo $G$ non ha spigoli; in tal caso questa operazione di inizializzazione sarebbe completamente inutile e costosa poiché l'algoritmo non è in grado di trovare alcun discendete di $u$. Più in generale, in assenza di ipotesi sul numero di componenti connesse all'interno del grafo, probabilmente l'algoritmo visiterà solo un sottoinsieme $Q \subseteq V$ di vertici. Fatte queste considerazioni, per evitare di aggiornare inutilmente i flag di tutti i nodi a ogni esecuzione, si è preferito utilizzare una lista di supporto $H$ all'interno della quale inserire tutti i nodi analizzati dall'algoritmo; quest'ultimo, al termine della computazione, aggiorna il flag solo per i nodi visitati, cioè per quelli contenuti all'interno di $H$.
+\end{enumerate}
+
+L'algoritmo \texttt{calcNodeVisibilityDegree} usato per il calcolo del grado di visibilità di un generico nodo è riportato in figura \textbf{algorithm \ref{alg:akko}}.
+
+% -------------------------------------------------------------------------------------------------------------- %
+% Pseudocodice dell'algoritmo 'calcNodeVisibilityDegree'
+% -------------------------------------------------------------------------------------------------------------- %
+\begin{center}
+\begin{algorithm}
+\caption{calcNodeVisibilityDegree}\label{alg:akko}
+\begin{algorithmic}[1]
+\Function{calcNodeVisibilityDegree}{$\textit{node}$}
+
+\State $\textit{visibilityDegree} \gets 0$
+\State $\textit{supportList} \gets \text{Nuova lista}$
+\State $\textit{successorsNodeQueue} \gets \text{Nuova coda}$
+\State $\textit{intermediateNodes} \gets 0$
+
+\State $\text{Inserisci \textit{node} all'interno della coda \textit{successorsNodeQueue}}$
+
+\While{$\text{\textbf{not} successorsNodeQueue.isEmpty()}$} 
+
+	\State $\textit{successorsNodeQueueSize} \gets \text{successorsNodeQueue.getSize()}$
+
+	\For{$\text{\textit{successorsNodeQueueSize} \textbf{times}}$}
+		\State $\textit{myNode} \gets \textit{successorsNodeQueue.dequeue()}$
+		\State $\textit{successors} \gets \text{Estrai i successori di \textit{myNode}}$
+		
+		\ForAll{$\text{\textit{node} \textbf{in} \textit{successors}}$} 
+			
+			\If {$\text{\textbf{not} \textit{node.isVisited}}$}
+			
+				\State $\textit{node.isVisited} \gets \text{True}$
+			
+				\If {$(\textit{intermediateNodes} \leq \textit{node.value})$}
+					\State $\text{Incrementa \textit{visibilityDegree}}$
+        			\EndIf			
+			
+				\State $\text{Inserisci \textit{node} in coda a \textit{successorsNodeQueue}}$
+				\State $\text{Inserisci \textit{node} in coda a \textit{supportList}}$
+        		\EndIf
+		
+		\EndFor	
+	\EndFor
+	
+	\State $\text{Incrementa \textit{intermediateNodes}}$
+
+
+
+
+\EndWhile
+\ForAll{$\text{\textit{node} \textbf{in} \textit{supportList}}$} 
+		\State $\textit{node.isVisited} \gets \text{False}$
+\EndFor
+\State \Return $\textit{visibilityDegree}$
+
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+\end{center}
+% -------------------------------------------------------------------------------------------------------------- %
+\subsubsection{Calcolo del vertice con massimo grado di visibilità}
+
+A questo punto trovare il nodo con massimo grado di visibilità è molto semplice in quanto richiede il calcolo del grado di visibilità di ogni nodo del grafo per poi isolare quello con grado di visibilità massimo mediante $(n-1)$ confronti. Lo pseudo-codice dell'algoritmo, denominato \texttt{getMaxVisibilityDegreeNode}, è riportato in \textbf{algorithm \ref{alg:akko2}}.
+
+% -------------------------------------------------------------------------------------------------------------- %
+% Pseudocodice dell'algoritmo 'getMaxVisibilityDegreeNode'
+% -------------------------------------------------------------------------------------------------------------- %
+\begin{center}
+\begin{algorithm}
+\caption{getMaxVisibilityDegreeNode}\label{alg:akko2}
+\begin{algorithmic}[1]
+\Function{getMaxVisibilityDegreeNode}{$\text{grafo \textit{G} con \textit{n} nodi}$}
+
+\State $\textit{maxVisibilityNodeIdentifier} \gets 0$
+\State $\textit{maxVisibilityValue} \gets \texttt{calcNodeVisibilityDegree}(0)$
+
+\For{$\text{\textit{nodeID} \textbf{in} \text{[1,\textit{n}]}}$} 
+			
+			\State $\text{\textit{currentVisibilityValue} $\gets$ \texttt{calcNodeVisibilityDegree}(\textit{nodeID})}$
+			
+			\If {$\text{\textit{currentVisibilityValue} $\geq$ \textit{maxVisibilityValue}}$}
+				
+				\State $\text{\textit{maxVisibilityNodeIdentifier} $\gets$ \textit{nodeID}}$
+				\State $\text{\textit{maxVisibilityValue} $\gets$ \textit{currentVisibilityValue}}$
+				
+        		\EndIf
+		
+		\EndFor	
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+\end{center}
+% -------------------------------------------------------------------------------------------------------------- %
+
+\newpage
+
+\subsection{Costo computazionale}
+
+Sia dato un grafo diretto aciclico non pesato $G = (V, E)$ tale che $|V| = n$ e $|E| = x$. Supponiamo inoltre che il grafo sia connesso, ovvero esiste un cammino tra ogni coppia di vertici appartenenti al grafo $G$; siamo ovviamente nella situazione peggiore poiché in queste condizioni l'algoritmo dovrà tener conto di ogni vertice. Analizziamo quindi il tempo necessario per eseguire il calcolo del grado di visibilità di un generico nodo $u \in V$. 
+
+Durante la sua esecuzione, ad un certo punto l'algoritmo dovrà trovare tutti i discendenti di un generico nodo $x$ a sua volta discendente di $u$; ciò richiede la scansione della lista di adiacenza di $x$ e questa operazione richiede tempo $O(\delta(x))$. Successivamente occorre verificare le condizioni di visibilità per ogni discendente di $x$ trovato e, se supponiamo che l'operazione di verifica della visibilità di un nodo possa essere svolta in tempo costante, anche questa operazione ha un costo pari a $O(\delta(x))$. È facile perciò convincersi che, in generale, elaborare un generico nodo $x$ richieda tempo pari $O(2\delta(x))$ nel caso peggiore. 
+
+Pur essendo tuttavia possibile che alla $k$-esima iterazione l'algoritmo analizzi più di un vertice per volta, in base alle ipotesi è pur certo che il numero totale di nodi che verranno visitati sia pari $n$; di conseguenza possiamo affermare che il costo dell'algoritmo sia pari a $O(\sum_{v \in V} 2\delta(v))$ nel caso peggiore. Poiché per un qualunque grafo è vero che $\sum_{v \in V} \delta(v) = 2|E|$, possiamo concludere che il costo dell'esecuzione dell'algoritmo è pari a $O(4|E|)$ nel caso peggiore\footnote{Da ciò deduciamo che il tempo di esecuzione dell'algoritmo sia proporzionale al numero degli spigoli; questo risultato è confermato anche dai nostri risultati sperimentali: infatti, qualora applicassimo l'algoritmo a un grafo con $n$ vertici senza spigoli, esso termina immediatamente a prescindere dal numero di vertici.}. 
+
+Trovare il nodo avente grado di visibilità massimo richiede innanzitutto il calcolo del grado di visibilità di ogni nodo del grafo: questa operazione richiede tempo pari a $n$ volte il tempo richiesto per calcolare il grado di visibilità di un singolo nodo, ovvero $O(4n|E|)$. Isolare nodo avente grado di visibilità massimo viene fatto attraverso $(n -1)$ confronti\footnote{Cfr. \textit{ivi}, pp. 122-123}; il costo totale dell'algoritmo è quindi pari a $O(4n|E| +n -1)$.
+
+\subsubsection{Costo computazionale con altre forme di rappresentazione}
+
+Per sottolineare l'importanza della forma di rappresentazione del grafo, abbiamo voluto testare lo stesso algoritmo anche su grafi che utilizzassero differenti strutture dati. In particolare abbiamo voluto rappresentare il nostro grafo mediante una \textit{matrice di adiacenza} di cui forniamo la definizione:
+
+\begin{thm}\label{thm:def5}
+Sia $M$ una matrice, di dimensione $n \times n$, le cui righe e colonne sono indicizzate dai vertici del grafo. La \textbf{matrice di adiacenza} $M$ è definita nel modo seguente:
+
+\[
+M[u,v]=
+\begin{cases}
+1,
+ & \text{se $(u, v)$ è un arco del grafo $G$,} \\
+0, & \text{altrimenti.}
+\end{cases}
+\]
+\end{thm}
+
+Sia dato un grafo diretto aciclico non pesato $G = (V, E)$ tale che $|V| = n$. Nonostante i diversi vantaggi computazionali, questa forma di rappresentazione non è adatta per la nostra applicazione poiché trovare tutti i successori di un generico nodo $v$ risulta molto costoso in quanto è necessario esaminare tutte le posizioni $M[v,\cdot]$ della matrice, ovvero scandire un'intera riga, anche nel caso in cui ci sono pochi vicini di $v$; di conseguenza il tempo richiesto per trovare tutti i successori di un nodo è sempre pari $O(n)$\footnote{Cfr. \textit{ivi}, pp. 324-325}; ciò implica un tempo quadratico per il calcolo del grado di visibilità di un nodo. Per rendersi conto delle differenze tra le due forme di rappresentazione, potete osservare i risultati sperimentali riassunti all'interno della tabella \ref{table:akko} e \ref{table:diana}.
+
+
+\begin{table}
+\caption{Analisi dell'algoritmo \texttt{calcNodeVisibilityDegree}}\label{table:akko}
+\begin{center}
+\begin{tabular}{lc}
+
+\toprule
+Forma di rappresentazione & Tempo (\textit{s}) \\
+
+\midrule
+
+Matrice di adiacenza & 0.00003538099917932414 \\
+Lista di adiacenza & 0.00001901199721032754 \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\begin{table}
+\caption{Analisi dell'algoritmo \texttt{getMaxVisibilityDegreeNodeID}}\label{table:diana}
+\begin{center}
+\begin{tabular}{lc}
+
+\toprule
+Forma di rappresentazione & Tempo (\textit{s}) \\
+
+\midrule
+
+Matrice di adiacenza & 0.00013200300236348994 \\
+Lista di adiacenza & 0.00006565399962710217 \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+
+\section{Implementazione}
+
+Da un punto di vista implementativo, la realizzazione dell'applicazione è stata effettuata utilizzando le seguenti classi:
+
+\begin{description}
+\item[\texttt{AcyclicDirectGraph}] una classe astratta usata per modellare un comune grafo aciclico orientato.
+\item[\texttt{AdjacencyListGraph}] figlia della classe precedente, modella un grafo rappresentato mediante liste di adiacenza.
+\item[\texttt{AdjacencyMatrixGraph}] figlia della classe \texttt{AcyclicDirectGraph}, modella un grafo rappresentato mediante matrice di adiacenza.
+\item[\texttt{GraphNode}] modella un nodo di un comune grafo orientato.
+\item[\texttt{GraphNode}] questa classe, figlia di quella precedente, modella un nodo di un grafo rappresentato mediante liste di adiacenza.
+\item[\texttt{Queue}] questa classe è stata utilizzata per modellare una coda.
+
+\end{description}
+ 
+Per ovvi motivi di spazio, omettiamo in questa sede una descrizione dettagliata delle varie classi e dei loro metodi in ogni caso già presente all'interno del codice sorgente. Ricordiamo che per ottenere informazioni dettagliate sull'interfaccia di tutti i metodi definiti nelle varie classi è sufficiente digitare \texttt{help(<nome della classe>)} dalla console dell'interprete \textit{Python} dopo aver eseguito l'importazione della classe desiderata.
+
+\end{document}
